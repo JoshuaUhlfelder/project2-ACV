@@ -24,7 +24,7 @@ batch_size=1
  #The maximum window size will be max_image_size x max_image_size
 
 #Set training and mask directory
-test_dir = "../vesuvius-challenge-ink-detection/train"
+test_dir = "../vesuvius-challenge-ink-detection/test"
 #A new 'masks' folder will be created in this directory
 
 # Set device
@@ -49,7 +49,7 @@ img_collections=[]
 for pth in os.listdir(test_dir):
     img_collections.append(test_dir+ '/' + pth + '/')
 
-img_collections = ['../vesuvius-challenge-ink-detection/train/1/']
+#img_collections = ['../vesuvius-challenge-ink-detection/train/1/']
     
 for i in range(len(img_collections)):
         
@@ -57,12 +57,15 @@ for i in range(len(img_collections)):
     big_mask = rasterio.open(img_collections[i] + 'mask.png')
     height = big_mask.height
     width = big_mask.width
+    window = Window(0,0,width,height)
+    true_mask = big_mask.read(1, window=window)
+    true_mask = (true_mask > 0).astype(np.uint8)
     #Ensure the selected center of window is within the fragment
     big_mask.close()
     
-    combined = np.zeros((height, width, 3))
+    combined = np.zeros((height, width))
     
-    for l in [1200,900,600,300]:
+    for l in [1200,960,850,630]:
         max_image_size= l
         
         #Get the number of full blocks in the x and y directions
@@ -115,10 +118,35 @@ for i in range(len(img_collections)):
                         im[:, :, 2][msk > 0.5] = 1
                 result[coords[0]:(coords[0]+max_image_size), 
                        coords[1]:(coords[1]+max_image_size), :] = im
-                    
+                
+                
+        result = cv2.cvtColor(result, cv2.COLOR_BGR2GRAY)
         combined = np.add(combined, result)
         
     final = np.where(combined>2, 255, 0)
     cv2.imwrite('../' + str(i) + '.png', final)
+    
+    #Get the f1 score
+    def score(true_mask, predicted):
+        
+        TP = np.sum(np.logical_and(predicted == 1, true_mask == 1))
+        TN = np.sum(np.logical_and(predicted == 0, true_mask == 0))
+        FP = np.sum(np.logical_and(predicted == 1, true_mask == 0))
+        FN = np.sum(np.logical_and(predicted == 0, true_mask == 1))
+        
+        print('TP: %i, FP: %i, TN: %i, FN: %i' % (TP,FP,TN,FN))
+        
+        p = TP/(TP+FP)
+        r = TP/(TP+FN)
+        B = 0.5
+        
+        #Calculate the F0.5 score
+        scr5 = ((1+math.pow(B, 2))*p*r)/(math.pow(B, 2) * p + r)
+        return scr5
+    
+    
+    
+    f_5_score = score(true_mask, final)
+    print('F0.5 score:', f_5_score)
     
     

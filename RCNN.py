@@ -21,8 +21,8 @@ Advising from https://towardsdatascience.com/train-mask-rcnn-net-for-object-dete
 
 
 #Define the batch size and the size every sample from the fragment will be converted to
-batch_size=1
-max_image_size= 600 #The maximum window size will be max_image_size x max_image_size
+batch_size=4
+max_image_size= 1200 #The maximum window size will be max_image_size x max_image_size
 
 #Set training and mask directory
 train_dir="../vesuvius-challenge-ink-detection/train"
@@ -55,7 +55,7 @@ def loadData():
         
         #Get a random window size (radius) with the maximum dimensions as image_size
         #And a min size as 20% of that size
-        window_size = math.floor(random.randint(0.2*max_image_size,max_image_size)/2)
+        window_size = math.floor(random.randint(0.05*max_image_size,max_image_size)/2)
         
         #Get the center of the window on the image
         big_mask = rasterio.open(img_collections[idx] + 'mask.png')
@@ -175,7 +175,7 @@ def score(true_mask, predicted):
 
 
 #Training and evaluation loop
-for i in range(10001):
+for i in range(401):
     model.train()
     images, targets = loadData()
     images = list(image.to(device) for image in images)
@@ -190,7 +190,7 @@ for i in range(10001):
     
     print(i,'loss:', losses.item())
     #Evaluation
-    if i%200==0:
+    if i%100==0:
         torch.save(model.state_dict(), '../checkpoints/' + str(i)+".torch")
         print("Save model to:",'../checkpoints/' + str(i)+".torch")
         print('\nEvaluating...')
@@ -212,7 +212,7 @@ for i in range(10001):
         
         combined = np.zeros((height, width))
         
-        for l in [1200]:
+        for l in [1200, 840]:
             max_image_size= l
             
             #Get the number of full blocks in the x and y directions
@@ -266,7 +266,7 @@ for i in range(10001):
                         
             combined = np.add(combined, result)
             
-        final = np.where(combined>0, 1, 0)
+        final = np.where(combined>1, 1, 0)
         
         f_5_score = score(true_mask, final)
         print('F0.5 score:', f_5_score)
