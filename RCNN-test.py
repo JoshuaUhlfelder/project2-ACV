@@ -40,7 +40,7 @@ in_features = model.roi_heads.box_predictor.cls_score.in_features
 model.roi_heads.box_predictor=FastRCNNPredictor(in_features,num_classes=2)
 
 #Load states
-model.load_state_dict(torch.load("1_1000.torch"))
+model.load_state_dict(torch.load("../checkpoints/1_1000.torch"))
 model.to(device)# move model to the right devic
 model.eval()
 
