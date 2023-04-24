@@ -12,6 +12,7 @@ from rasterio.windows import Window
 import math
 
 
+
 """
 MASK RCNN
 
@@ -94,7 +95,7 @@ def loadData():
         width = big_mask.width
         window_center_width = 0
         window_center_height = 0
-        center_val = 0
+        #center_val = 0
         
         
         window_center_width = random.randint(window_size,width - window_size - 1)
@@ -135,7 +136,6 @@ def loadData():
             #Find the connected regions
             (numLabels, labels, stats, centroids) = cv2.connectedComponentsWithStats(vesMask, connectivity=8)
             #Create a new mask for each connected region
-            print(numLabels)
             for i in range(1, numLabels):
                 new_mask = np.where(labels == i, 1, 0)
                 new_mask = (new_mask > 0).astype(np.uint8) 
@@ -162,7 +162,7 @@ def loadData():
     batch_Imgs = batch_Imgs.swapaxes(1, 3).swapaxes(2, 3)
     return batch_Imgs, batch_Data
 
-
+ 
 #Load in the Mask RCNN model
 model=torchvision.models.detection.maskrcnn_resnet50_fpn(pretrained=True, 
                                                          image_mean = torch.tensor(np.full(65,0.5)),
@@ -182,23 +182,133 @@ model.to(device)
 #Set optimizer and lr
 optimizer = torch.optim.AdamW(params=model.parameters(), lr=1e-5)
 
-model.train()
 
 
+
+#Get the true/false positive/negatives for the created mask vs. the true mask
+#Then output the F0.5 score
+def score(true_mask, predicted):
+    
+    TP = np.sum(np.logical_and(predicted == 1, true_mask == 1))
+    TN = np.sum(np.logical_and(predicted == 0, true_mask == 0))
+    FP = np.sum(np.logical_and(predicted == 1, true_mask == 0))
+    FN = np.sum(np.logical_and(predicted == 0, true_mask == 1))
+    
+    print('TP: %i, FP: %i, TN: %i, FN: %i' % (TP,FP,TN,FN))
+    
+    p = TP/(TP+FP)
+    r = TP/(TP+FN)
+    B = 0.5
+    
+    #Calculate the F0.5 score
+    scr5 = ((1+math.pow(B, 2))*p*r)/(math.pow(B, 2) * p + r)
+    return scr5
+
+
+#Training and evaluation loop
 for i in range(10001):
-   images, targets = loadData()
-   images = list(image.to(device) for image in images)
-   targets=[{k: v.to(device) for k,v in t.items()} for t in targets]
-   
-   optimizer.zero_grad()
-   loss_dict = model(images, targets)
-   losses = sum(loss for loss in loss_dict.values())
-   
-   losses.backward()
-   optimizer.step()
-   
-   print(i,'loss:', losses.item())
-   if i%201==0:
-           torch.save(model.state_dict(), '../' + str(i)+".torch")
-           print("Save model to:",'../' + str(i)+".torch")
+    model.train()
+    images, targets = loadData()
+    images = list(image.to(device) for image in images)
+    targets=[{k: v.to(device) for k,v in t.items()} for t in targets]
+    
+    optimizer.zero_grad()
+    loss_dict = model(images, targets)
+    losses = sum(loss for loss in loss_dict.values())
+    
+    losses.backward()
+    optimizer.step()
+    
+    print(i,'loss:', losses.item())
+    #Evaluation
+    if i%200==0:
+        torch.save(model.state_dict(), '../checkpoints/' + str(i)+".torch")
+        print("Save model to:",'../checkpoints/' + str(i)+".torch")
+        print('\nEvaluating...')
+        
+        model.eval()
+        
+        m = random.randint(0,len(img_collections) - 1)
+        m = 0
+        print("testing on fragment", img_collections[m])
+        ####Evaulation loop
+        #Create the big mask with the same dimensions as the og. files
+        big_mask = rasterio.open(img_collections[m] + 'inklabels.png')
+        height = big_mask.height
+        width = big_mask.width
+        window = Window(0,0,width,height)
+        true_mask = big_mask.read(1, window=window)
+        true_mask = (true_mask > 0).astype(np.uint8)
+        #Ensure the selected center of window is within the fragment
+        big_mask.close()
+        
+        combined = np.zeros((height, width))
+        
+        for l in [1200]:
+            max_image_size= l
+            
+            #Get the number of full blocks in the x and y directions
+            #This helps us divide up the image
+            x_range = math.ceil(width/max_image_size)
+            y_range = math.ceil(height/max_image_size)
+            
+            #create an empty matrix for our mask we'll make
+            result = np.zeros((height, width))
+            
+            #Divide the image into chunks
+            for x in range(x_range):
+                for y in range(y_range):
+                    coords = [y*max_image_size,x*max_image_size]
+                    #If the image goes beyond the bounds, reset the coords back
+                    if coords[0] + max_image_size >= height:
+                        coords[0] = height-max_image_size
+                    if coords[1] + max_image_size >= width:
+                        coords[1] = width-max_image_size
+                        
+                    #for each chunk, make a window and load in the image
+                    window = Window(coords[1], coords[0], max_image_size, max_image_size)
+                    print(window)
+                    images = np.zeros((max_image_size,max_image_size,65))
+                    layer_names = os.listdir(img_collections[m] + 'surface_volume')
+                    layer_names.sort()
+                    #Add each layer of the fragment to the stack of images
+                    for j in range(65):
+                        with rasterio.open(img_collections[m] + 'surface_volume/' + layer_names[j]) as img:
+                            chunk = img.read(1, window=window)
+                            chunk = cv2.resize(chunk, [max_image_size,max_image_size], cv2.INTER_LINEAR)
+                            images[:,:,j] = chunk
+                    #Add the chunk to the image file
+                    #Track the coordinates of the image so we can reassemble the large picture
+        
+                    images = torch.as_tensor(images, dtype=torch.float32).unsqueeze(0)
+                    images=images.swapaxes(1, 3).swapaxes(2, 3)
+                    images = list(image.to(device) for image in images)
+            
+                    with torch.no_grad():
+                        pred = model(images)
+                    
+                    im = np.zeros((max_image_size,max_image_size))
+                    for k in range(len(pred[0]['masks'])):
+                        msk=pred[0]['masks'][k,0].detach().cpu().numpy()
+                        scr=pred[0]['scores'][k].detach().cpu().numpy()
+                        if scr>0.6 :
+                            im[:,:][msk>0.5] = 1
+                    result[coords[0]:(coords[0]+max_image_size), 
+                           coords[1]:(coords[1]+max_image_size)] = im
+                        
+            combined = np.add(combined, result)
+            
+        final = np.where(combined>0, 1, 0)
+        
+        f_5_score = score(true_mask, final)
+        print('F0.5 score:', f_5_score)
+        
+        
+        
+        
+        
+        
+        
+
+           
 
