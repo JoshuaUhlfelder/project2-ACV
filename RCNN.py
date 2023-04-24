@@ -117,6 +117,7 @@ def loadData():
         for i in range(num_objs):
             x,y,w,h = cv2.boundingRect(masks[i])
             boxes[i] = torch.tensor([x, y, x+w, y+h])
+        masks = np.array(masks)
         masks = torch.as_tensor(masks, dtype=torch.uint8)
         full_img = torch.as_tensor(full_img, dtype=torch.float32)
         data = {}
