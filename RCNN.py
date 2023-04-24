@@ -27,41 +27,7 @@ max_image_size= 600 #The maximum window size will be max_image_size x max_image_
 #Set training and mask directory
 train_dir="../vesuvius-challenge-ink-detection/train"
 #A new 'masks' folder will be created in this directory
-mask_dir = '../'
 
-
-"""
-Reads in a binary mask image with the ink classes
-and creates a folder of individual mask files for each ink group.
-"""
-def make_masks(image, save_dir):
-    
-    #Convert the make image to a one-channel, binary image.
-    img = cv2.imread(image)
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    thresh = cv2.threshold(gray, 127, 255, cv2.THRESH_BINARY)[1]
-    #CFind the connected regions
-    (numLabels, labels, stats, centroids) = cv2.connectedComponentsWithStats(thresh, connectivity=8)
-    
-    #Make new directories to store the mask files in
-    try:
-        os.mkdir('../masks')
-    except:
-        print("Note: mask directory already present.")
-    sub_dir = image.split('/')[-2]
-    
-    try:
-        os.mkdir('../masks/' + sub_dir)
-    except:
-        print("Note: mask sub-directory already present.")
-    
-    
-    #For each connected region, create and save a new mask file
-    for i in range(1, numLabels):
-        new_mask = np.where(labels == i, 255, 0)
-        split_name = 'mask_' + str(i) + '.png'
-        cv2.imwrite(save_dir + 'masks/' + sub_dir + '/' + split_name, new_mask)
-        
 
 
 
@@ -69,9 +35,11 @@ def make_masks(image, save_dir):
 #Make the masks for each fragment
 img_collections=[]
 for pth in os.listdir(train_dir):
-    #print("Making masks for fragment", pth)
-    img_collections.append(train_dir+ '/' + pth + '/')
-    #make_masks('../vesuvius-challenge-ink-detection/train/' + pth + '/inklabels.png', mask_dir)
+    if not pth.startswith('.'):
+        img_collections.append(train_dir+ '/' + pth + '/')
+img_collections.sort()
+
+#Tablet 1 used for testing. Tablets 2 and 3 used for training.
 
 
 
@@ -80,8 +48,8 @@ def loadData():
     batch_Imgs=[]
     batch_Data=[]
     for i in range(batch_size):
-        #Randomly select a target image file
-        idx=random.randint(0,len(img_collections)-1)
+        #Randomly select a target image file from the training tablets
+        idx=random.randint(1,len(img_collections)-1)
         #Get the names of all the tifs in the selected folder
         layer_names = os.listdir(img_collections[idx] + 'surface_volume')
         
@@ -227,8 +195,7 @@ for i in range(10001):
         print('\nEvaluating...')
         
         model.eval()
-        
-        m = random.randint(0,len(img_collections) - 1)
+
         m = 0
         print("testing on fragment", img_collections[m])
         ####Evaulation loop
