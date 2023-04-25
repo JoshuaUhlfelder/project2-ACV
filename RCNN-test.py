@@ -40,7 +40,7 @@ in_features = model.roi_heads.box_predictor.cls_score.in_features
 model.roi_heads.box_predictor=FastRCNNPredictor(in_features,num_classes=2)
 
 #Load states
-model.load_state_dict(torch.load("../checkpoints/1_1000.torch"))
+model.load_state_dict(torch.load("../checkpoints/1_1000.torch", map_location=torch.device(device)))
 model.to(device)# move model to the right devic
 model.eval()
 
@@ -48,13 +48,16 @@ model.eval()
 img_collections=[]
 for pth in os.listdir(test_dir):
     img_collections.append(test_dir+ '/' + pth + '/')
+    
+#img_collections=[img_collections[0]]
 
-#img_collections = ['../vesuvius-challenge-ink-detection/train/1/']
+img_collections = ['../vesuvius-challenge-ink-detection/train/1/']
     
 for i in range(len(img_collections)):
         
     #Create the big mask with the same dimensions as the og. files
-    big_mask = rasterio.open(img_collections[i] + 'mask.png')
+    big_mask = rasterio.open(img_collections[i] + 'inklabels.png')
+    #big_mask = rasterio.open(img_collections[i] + 'mask.png')
     height = big_mask.height
     width = big_mask.width
     window = Window(0,0,width,height)
@@ -120,11 +123,11 @@ for i in range(len(img_collections)):
                        coords[1]:(coords[1]+max_image_size), :] = im
                 
                 
-        result = cv2.cvtColor(result, cv2.COLOR_BGR2GRAY)
+        result = result[:,:,0]
         combined = np.add(combined, result)
         
-    final = np.where(combined>2, 255, 0)
-    cv2.imwrite('../' + str(i) + '.png', final)
+    final = np.where(combined>2, 1, 0)
+    cv2.imwrite('../' + str(i) + '.png', final*255)
     
     #Get the f1 score
     def score(true_mask, predicted):

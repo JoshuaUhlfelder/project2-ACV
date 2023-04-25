@@ -149,7 +149,10 @@ device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cp
 model.to(device)
 
 #Set optimizer and lr
-optimizer = torch.optim.AdamW(params=model.parameters(), lr=1e-5)
+base_learning_rate = 3e-4
+lr = base_learning_rate * batch_size / 256
+print("Set learning rate to:", lr)
+optimizer = torch.optim.AdamW(params=model.parameters(), lr=lr)
 
 
 
@@ -265,6 +268,7 @@ for i in range(401):
                            coords[1]:(coords[1]+max_image_size)] = im
                         
             combined = np.add(combined, result)
+            
             
         final = np.where(combined>1, 1, 0)
         
