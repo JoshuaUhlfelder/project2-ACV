@@ -22,7 +22,7 @@ Advising from https://towardsdatascience.com/train-mask-rcnn-net-for-object-dete
 
 #Define the batch size and the size every sample from the fragment will be converted to
 batch_size=1
-max_image_size= 600 #The maximum window size will be max_image_size x max_image_size
+max_image_size= 224 #The maximum window size will be max_image_size x max_image_size
 
 #Set training and mask directory
 train_dir="../vesuvius-challenge-ink-detection/train"
@@ -55,7 +55,7 @@ def loadData():
         
         #Get a random window size (radius) with the maximum dimensions as image_size
         #And a min size as 20% of that size
-        window_size = math.floor(random.randint(0.1*max_image_size,max_image_size*1.5)/2)
+        window_size = math.floor(random.randint(0.3*max_image_size,max_image_size*3)/2)
         
         #Get the center of the window on the image
         big_mask = rasterio.open(img_collections[idx] + 'mask.png')

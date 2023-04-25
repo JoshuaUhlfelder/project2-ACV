@@ -40,7 +40,7 @@ in_features = model.roi_heads.box_predictor.cls_score.in_features
 model.roi_heads.box_predictor=FastRCNNPredictor(in_features,num_classes=2)
 
 #Load states
-model.load_state_dict(torch.load("../checkpoints/1_1000.torch", map_location=torch.device(device)))
+model.load_state_dict(torch.load("../checkpoints/3_300.torch", map_location=torch.device(device)))
 model.to(device)# move model to the right devic
 model.eval()
 
@@ -127,7 +127,7 @@ for i in range(len(img_collections)):
         combined = np.add(combined, result)
         
     final = np.where(combined>0, 1, 0)
-    cv2.imwrite('../' + str(i) + '.png', final*255)
+    cv2.imwrite('../' + str(i) + '2.png', final*255)
     
     #Get the f1 score
     def score(true_mask, predicted):
