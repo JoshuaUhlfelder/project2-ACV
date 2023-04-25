@@ -21,7 +21,7 @@ Advising from https://towardsdatascience.com/train-mask-rcnn-net-for-object-dete
 
 
 #Define the batch size and the size every sample from the fragment will be converted to
-batch_size=4
+batch_size=1
 max_image_size= 600 #The maximum window size will be max_image_size x max_image_size
 compress_size = 224 #The size every woindow is compressed to
 
@@ -151,8 +151,7 @@ model.to(device)
 print(device)
 
 #Set optimizer and lr
-base_learning_rate = 3e-4
-lr = base_learning_rate * batch_size / 256
+lr = 3e-4
 print("Set learning rate to:", lr)
 optimizer = torch.optim.AdamW(params=model.parameters(), lr=lr)
 
@@ -217,7 +216,7 @@ for i in range(401):
         
         combined = np.zeros((height, width))
         
-        for l in [1200, 840]:
+        for l in [1200]:
             max_image_size= l
             
             #Get the number of full blocks in the x and y directions
