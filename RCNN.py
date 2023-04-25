@@ -147,6 +147,7 @@ model.roi_heads.box_predictor=FastRCNNPredictor(in_features,num_classes=2)
 #Load the model to the device
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 model.to(device)
+print(device)
 
 #Set optimizer and lr
 base_learning_rate = 3e-4
@@ -270,7 +271,7 @@ for i in range(401):
             combined = np.add(combined, result)
             
             
-        final = np.where(combined>1, 1, 0)
+        final = np.where(combined>0, 1, 0)
         
         f_5_score = score(true_mask, final)
         print('F0.5 score:', f_5_score)

@@ -126,7 +126,7 @@ for i in range(len(img_collections)):
         result = result[:,:,0]
         combined = np.add(combined, result)
         
-    final = np.where(combined>2, 1, 0)
+    final = np.where(combined>0, 1, 0)
     cv2.imwrite('../' + str(i) + '.png', final*255)
     
     #Get the f1 score
