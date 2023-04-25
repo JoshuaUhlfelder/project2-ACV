@@ -242,7 +242,7 @@ model.to(device)
 print(device)
 
 #Set optimizer and lr
-lr = 4e-3
+lr = 3e-4
 print("Set learning rate to:", lr)
 optimizer = torch.optim.AdamW(params=model.parameters(), lr=lr)
 criterion = nn.CrossEntropyLoss()
