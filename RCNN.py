@@ -22,7 +22,8 @@ Advising from https://towardsdatascience.com/train-mask-rcnn-net-for-object-dete
 
 #Define the batch size and the size every sample from the fragment will be converted to
 batch_size=4
-max_image_size= 1200 #The maximum window size will be max_image_size x max_image_size
+max_image_size= 600 #The maximum window size will be max_image_size x max_image_size
+compress_size = 224 #The size every woindow is compressed to
 
 #Set training and mask directory
 train_dir="../vesuvius-challenge-ink-detection/train"
@@ -85,12 +86,12 @@ def loadData():
                         window_center_height - window_size, window_size*2, window_size*2)
 
         #for each TIF, open the file in the window and add to the tensor
-        full_img = np.zeros((max_image_size,max_image_size,65))
+        full_img = np.zeros((compress_size,compress_size,65))
         layer_names.sort()
         for j in range(65):
             with rasterio.open(img_collections[idx] + 'surface_volume/' + layer_names[j]) as img:
                 chunk = img.read(1, window=window)
-                chunk = cv2.resize(chunk, [max_image_size,max_image_size], cv2.INTER_LINEAR)
+                chunk = cv2.resize(chunk, [compress_size,compress_size], cv2.INTER_LINEAR)
                 full_img[:,:,j] = chunk
 
         #Now window and resize the mask and create a new mask for each glob
@@ -100,7 +101,7 @@ def loadData():
             vesMask = mk.read(1, window=window)
             vesMask = (vesMask > 0).astype(np.uint8) 
             #Resize the image
-            vesMask=cv2.resize(vesMask,[max_image_size,max_image_size],cv2.INTER_NEAREST)
+            vesMask=cv2.resize(vesMask,[compress_size,compress_size],cv2.INTER_NEAREST)
             #Find the connected regions
             (numLabels, labels, stats, centroids) = cv2.connectedComponentsWithStats(vesMask, connectivity=8)
             #Create a new mask for each connected region
@@ -240,14 +241,14 @@ for i in range(401):
                     #for each chunk, make a window and load in the image
                     window = Window(coords[1], coords[0], max_image_size, max_image_size)
                     print(window)
-                    images = np.zeros((max_image_size,max_image_size,65))
+                    images = np.zeros((compress_size,compress_size,65))
                     layer_names = os.listdir(img_collections[m] + 'surface_volume')
                     layer_names.sort()
                     #Add each layer of the fragment to the stack of images
                     for j in range(65):
                         with rasterio.open(img_collections[m] + 'surface_volume/' + layer_names[j]) as img:
                             chunk = img.read(1, window=window)
-                            chunk = cv2.resize(chunk, [max_image_size,max_image_size], cv2.INTER_LINEAR)
+                            chunk = cv2.resize(chunk, [compress_size,compress_size], cv2.INTER_LINEAR)
                             images[:,:,j] = chunk
                     #Add the chunk to the image file
                     #Track the coordinates of the image so we can reassemble the large picture
@@ -262,6 +263,7 @@ for i in range(401):
                     im = np.zeros((max_image_size,max_image_size))
                     for k in range(len(pred[0]['masks'])):
                         msk=pred[0]['masks'][k,0].detach().cpu().numpy()
+                        msk = cv2.resize(msk, [max_image_size,max_image_size], cv2.INTER_NEAREST)
                         scr=pred[0]['scores'][k].detach().cpu().numpy()
                         if scr>0.6 :
                             im[:,:][msk>0.5] = 1
