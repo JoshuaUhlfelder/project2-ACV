@@ -55,7 +55,7 @@ def loadData():
         
         #Get a random window size (radius) with the maximum dimensions as image_size
         #And a min size as 20% of that size
-        window_size = math.floor(random.randint(0.1*max_image_size,max_image_size*2)/2)
+        window_size = math.floor(random.randint(0.1*max_image_size,max_image_size*1.5)/2)
         
         #Get the center of the window on the image
         big_mask = rasterio.open(img_collections[idx] + 'mask.png')
@@ -242,7 +242,7 @@ model.to(device)
 print(device)
 
 #Set optimizer and lr
-lr = 1e-3
+lr = 4e-3
 print("Set learning rate to:", lr)
 optimizer = torch.optim.AdamW(params=model.parameters(), lr=lr)
 criterion = nn.CrossEntropyLoss()
@@ -340,7 +340,7 @@ for i in range(401):
             for k in range(len(pred[0]['masks'])):
                 msk=pred[0]['masks'][k,0].detach().cpu().numpy()
                 scr=pred[0]['scores'][k].detach().cpu().numpy()
-                if scr>0.4 :
+                if scr>0.6 :
                     im[:,:][msk>0.5] = 1
             
             f_5_scores.append(score(true_mask, im))
