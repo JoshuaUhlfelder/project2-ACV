@@ -126,8 +126,8 @@ for i in range(len(img_collections)):
         result = result[:,:,0]
         combined = np.add(combined, result)
         
-    final = np.where(combined>0, 1, 0)
-    cv2.imwrite('../' + str(i) + '2.png', final*255)
+    final = np.where(combined>3, 1, 0)
+    cv2.imwrite('../' + str(i) + '5.png', final*255)
     
     #Get the f1 score
     def score(true_mask, predicted):
