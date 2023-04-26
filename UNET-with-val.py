@@ -115,15 +115,6 @@ class MyTrainDataset(torch.utils.data.Dataset):
         window = Window(window_center_width - window_size, 
                         window_center_height - window_size, window_size*2, window_size*2)
         
-        #for each TIF, open the file in the window and add to the tensor
-        full_img = np.zeros((max_image_size,max_image_size,65))
-        layer_names.sort()
-        for j in range(65):
-            with rasterio.open(self.fragment_folders[idx] + 'surface_volume/' + layer_names[j]) as img:
-                chunk = img.read(1, window=window)
-                chunk = cv2.resize(chunk, [max_image_size,max_image_size], cv2.INTER_LINEAR)
-                full_img[:,:,j] = chunk
-
         #Now get the ink labels for only the windowed region
         ink_file=os.path.join(self.fragment_folders[idx], 'inklabels.png')
         with rasterio.open(ink_file) as mk:
@@ -133,6 +124,18 @@ class MyTrainDataset(torch.utils.data.Dataset):
         ink_labels=cv2.resize(ink_labels,[max_image_size,max_image_size],cv2.INTER_NEAREST)
         #Make the 2d ink labels 3d
         ink_labels = ink_labels[:, :, np.newaxis]
+        
+        
+        #for each TIF, open the file in the window and add to the tensor
+        full_img = np.zeros((max_image_size,max_image_size,65))
+        layer_names.sort()
+        for j in range(65):
+            with rasterio.open(self.fragment_folders[idx] + 'surface_volume/' + layer_names[j]) as img:
+                chunk = img.read(1, window=window)
+                chunk = cv2.resize(chunk, [max_image_size,max_image_size], cv2.INTER_LINEAR)
+                full_img[:,:,j] = chunk
+
+
                     
         #Flip along horz. or vert. axis with prob 0.5
         if random.randint(0,1) == 0:
@@ -227,15 +230,6 @@ class MyValDataset(torch.utils.data.Dataset):
             window = Window(window_center_width - window_size, 
                             window_center_height - window_size, window_size*2, window_size*2)
             
-            #for each TIF, open the file in the window and add to the tensor
-            full_img = np.zeros((max_image_size,max_image_size,65))
-            layer_names.sort()
-            for j in range(65):
-                with rasterio.open(self.fragment_folders[idx] + 'surface_volume/' + layer_names[j]) as img:
-                    chunk = img.read(1, window=window)
-                    chunk = cv2.resize(chunk, [max_image_size,max_image_size], cv2.INTER_LINEAR)
-                    full_img[:,:,j] = chunk
-
             #Now get the ink labels for only the windowed region
             ink_file=os.path.join(self.fragment_folders[idx], 'inklabels.png')
             with rasterio.open(ink_file) as mk:
@@ -246,10 +240,20 @@ class MyValDataset(torch.utils.data.Dataset):
             #Make the 2d ink labels 3d
             ink_labels = ink_labels[:, :, np.newaxis]
             
-            
             #Ensure that the validation window has some ink in it
             if ink_labels.max()==0: 
                 return self.__getitem__(idx)
+            
+            #for each TIF, open the file in the window and add to the tensor
+            full_img = np.zeros((max_image_size,max_image_size,65))
+            layer_names.sort()
+            for j in range(65):
+                with rasterio.open(self.fragment_folders[idx] + 'surface_volume/' + layer_names[j]) as img:
+                    chunk = img.read(1, window=window)
+                    chunk = cv2.resize(chunk, [max_image_size,max_image_size], cv2.INTER_LINEAR)
+                    full_img[:,:,j] = chunk
+            
+            
             
             
             full_img = torch.tensor(full_img)
