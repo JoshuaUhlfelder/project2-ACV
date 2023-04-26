@@ -37,8 +37,8 @@ train_dir="../vesuvius-challenge-ink-detection/train"
 
 #Set number of training windows for each fragment
 #Each epoch will have train_cycle_count x fragment_count iterations
-train_cycle_count = 60
-val_cycle_count = 40
+train_cycle_count = 50
+val_cycle_count = 30
 
 
 class MyTrainDataset(torch.utils.data.Dataset):
