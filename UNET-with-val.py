@@ -37,8 +37,8 @@ train_dir="../vesuvius-challenge-ink-detection/train"
 
 #Set number of training windows for each fragment
 #Each epoch will have train_cycle_count x fragment_count iterations
-train_cycle_count = 50
-val_cycle_count = 30
+train_cycle_count = 60
+val_cycle_count = 40
 
 
 class MyTrainDataset(torch.utils.data.Dataset):
@@ -97,7 +97,7 @@ class MyTrainDataset(torch.utils.data.Dataset):
         
         #Get a random window size (radius) with the maximum dimensions as image_size
         #And a min size as 10% of that size
-        window_size = math.floor(random.randint(math.floor(0.1*max_image_size),max_image_size)/2)
+        window_size = math.floor(random.randint(math.floor(0.1*max_image_size),max_image_size*1.2)/2)
         
         #Get the center of the window on the image
         big_mask = rasterio.open(self.fragment_folders[idx] + 'mask.png')
@@ -345,7 +345,7 @@ def score(true_mask, predicted):
         return scr5
 
 
-def train_model(model, criterion, optimizer, scheduler, num_epochs=10):
+def train_model(model, criterion, optimizer, scheduler, num_epochs=20):
     since = time.time()
 
     best_model_wts = copy.deepcopy(model.state_dict())
@@ -450,11 +450,11 @@ class DiceLoss(nn.Module):
 criterion = DiceLoss()
 
 # Setup the optimizer to update the model parameters
-optimizer_ft = optim.Adam(model.parameters(), lr=3e-4)
+optimizer_ft = optim.Adam(model.parameters(), lr=1e-3)
 
 
 # Decay LR by a factor of 0.8 after a linear warmup
-scheduler1 = lr_scheduler.LinearLR(optimizer_ft, start_factor=0.05, total_iters=4)
+scheduler1 = lr_scheduler.LinearLR(optimizer_ft, start_factor=0.03, total_iters=6)
 scheduler2 = lr_scheduler.ExponentialLR(optimizer_ft, gamma=0.7)
 scheduler = lr_scheduler.SequentialLR(optimizer_ft, 
                                       schedulers=[scheduler1, scheduler2], milestones=[3])
