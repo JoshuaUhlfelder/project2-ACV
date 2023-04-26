@@ -468,7 +468,7 @@ scheduler = lr_scheduler.SequentialLR(optimizer_ft,
 
 # Train and evaluate.  
 model = train_model(model, criterion, optimizer_ft, scheduler,
-                       num_epochs=15)
+                       num_epochs=20)
 
 
 
