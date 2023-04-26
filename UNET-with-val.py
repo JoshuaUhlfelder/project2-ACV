@@ -125,6 +125,9 @@ class MyTrainDataset(torch.utils.data.Dataset):
         #Make the 2d ink labels 3d
         ink_labels = ink_labels[:, :, np.newaxis]
         
+        #Ensure that the training window has some ink in it
+        if ink_labels.max()==0: 
+            return self.__getitem__(idx)
         
         #for each TIF, open the file in the window and add to the tensor
         full_img = np.zeros((max_image_size,max_image_size,65))
@@ -458,7 +461,7 @@ optimizer_ft = optim.Adam(model.parameters(), lr=1e-3)
 
 
 # Decay LR by a factor of 0.8 after a linear warmup
-scheduler1 = lr_scheduler.LinearLR(optimizer_ft, start_factor=0.03, total_iters=6)
+scheduler1 = lr_scheduler.LinearLR(optimizer_ft, start_factor=0.03, total_iters=3)
 scheduler2 = lr_scheduler.ExponentialLR(optimizer_ft, gamma=0.7)
 scheduler = lr_scheduler.SequentialLR(optimizer_ft, 
                                       schedulers=[scheduler1, scheduler2], milestones=[3])
@@ -468,7 +471,7 @@ scheduler = lr_scheduler.SequentialLR(optimizer_ft,
 
 # Train and evaluate.  
 model = train_model(model, criterion, optimizer_ft, scheduler,
-                       num_epochs=20)
+                       num_epochs=10)
 
 
 
