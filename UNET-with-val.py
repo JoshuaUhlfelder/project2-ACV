@@ -379,10 +379,10 @@ def train_model(model, criterion, optimizer, scheduler, num_epochs=10):
                 with torch.set_grad_enabled(phase == 'train'):
                     outputs = model(inputs.float())
                     
-                    preds = outputs[0,0,:,:].detach().numpy()
+                    preds = outputs[0,0,:,:].detach().cpu().numpy()
                     preds = np.where(preds>0.5, 1, 0)
                     
-                    scr = score(labels[0,0,:,:].detach().numpy(), preds)
+                    scr = score(labels[0,0,:,:].detach().cpu().numpy(), preds)
                     
                     
                     loss = criterion(outputs, labels)
