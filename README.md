@@ -33,6 +33,6 @@ Each of the model folders has a training and test file or a combination, along w
 # Model 4: Final U-Net
 1. 
 
-# Administrative
-1. Code Reviews
-2. Roles and Responsibilities
+# Code Reviews and Team Responsibilities
+1. Code Reviews - a folder containing old project files with the other team member's comments
+2. Team Responsibilities.md - describes the specific tasks of each team member
