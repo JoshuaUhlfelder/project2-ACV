@@ -15,8 +15,11 @@ import math
 
 """
 MASK RCNN
+trains a Mask RCNN using validation windows (not entire fragments) from a fragment
 
-Advising from https://towardsdatascience.com/train-mask-rcnn-net-for-object-detection-in-60-lines-of-code-9b6bbff292c3
+The data loading process and training loop are adapted from Sagi Eppel:
+    https://towardsdatascience.com/train-mask-rcnn-net-for-object-detection-in-60-lines-of-code-9b6bbff292c3
+The mask-loading process and final image-stitching algorithms are original.
 """
 
 
@@ -29,8 +32,6 @@ train_dir="../vesuvius-challenge-ink-detection/train"
 #A new 'masks' folder will be created in this directory
 
 
-
-
 #Get all surface_volume folders from the training directory
 #Make the masks for each fragment
 img_collections=[]
@@ -40,7 +41,6 @@ for pth in os.listdir(train_dir):
 img_collections.sort()
 
 #Tablet 1 used for testing. Tablets 2 and 3 used for training.
-
 
 
 #Load in data
@@ -61,25 +61,15 @@ def loadData():
         big_mask = rasterio.open(img_collections[idx] + 'mask.png')
         height = big_mask.height
         width = big_mask.width
+        big_mask.close()
         window_center_width = 0
         window_center_height = 0
         #center_val = 0
         
-        
         window_center_width = random.randint(window_size,width - window_size - 1)
         window_center_height = random.randint(window_size,height - window_size - 1)
+                
         
-        """
-        #Ensure the selected center of window is within the fragment
-        while(center_val != 1):
-            window_center_width = random.randint(window_size,width - window_size - 1)
-            window_center_height = random.randint(window_size,height - window_size - 1)
-            for val in big_mask.sample([(window_center_width, window_center_height)]): 
-                center_val = val[0]
-       """     
-                
-                
-        big_mask.close()
         #Set the window bounds
         window = Window(window_center_width - window_size, 
                         window_center_height - window_size, window_size*2, window_size*2)
@@ -130,10 +120,6 @@ def loadData():
     batch_Imgs=torch.stack([torch.as_tensor(d) for d in batch_Imgs],0)
     batch_Imgs = batch_Imgs.swapaxes(1, 3).swapaxes(2, 3)
     return batch_Imgs, batch_Data
-
- 
-
-
 
 
 
@@ -215,15 +201,6 @@ def loadValData():
 
 
 
-
-
-
-
-
-
-
-
-
 #Load in the Mask RCNN model
 model=torchvision.models.detection.maskrcnn_resnet50_fpn(pretrained=True, 
                                                          image_mean = torch.tensor(np.full(65,0.5)),
@@ -261,7 +238,6 @@ def score(true_mask, predicted):
     print("true counts:", dict(zip(unique, counts)))
     
     TP = np.sum(np.logical_and(predicted == 1, true_mask == 1))
-    TN = np.sum(np.logical_and(predicted == 0, true_mask == 0))
     FP = np.sum(np.logical_and(predicted == 1, true_mask == 0))
     FN = np.sum(np.logical_and(predicted == 0, true_mask == 1))
     

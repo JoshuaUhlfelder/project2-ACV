@@ -14,10 +14,12 @@ import math
 
 
 """
-MASK RCNN
+MASK RCNN - thin
+Trains a Mask RCNN using only 6 layers of training data (not 65)
 
-Training loop and low-level implementation adapted from https://towardsdatascience.com/train-mask-rcnn-net-for-object-detection-in-60-lines-of-code-9b6bbff292c3
-Data loading strategy, metrics, and thorough adaptations are original
+The data loading process and training loop are adapted from Sagi Eppel:
+    https://towardsdatascience.com/train-mask-rcnn-net-for-object-detection-in-60-lines-of-code-9b6bbff292c3
+The mask-loading process and final image-stitching algorithms are original.
 """
 
 

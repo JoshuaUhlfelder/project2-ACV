@@ -15,8 +15,12 @@ import math
 
 """
 MASK RCNN
+the original Mask RCNN trainer that validates on an entire valdiation 
+fragment to get the F0.5 score
 
-Advising from https://towardsdatascience.com/train-mask-rcnn-net-for-object-detection-in-60-lines-of-code-9b6bbff292c3
+The data loading process and training loop are adapted from Sagi Eppel:
+    https://towardsdatascience.com/train-mask-rcnn-net-for-object-detection-in-60-lines-of-code-9b6bbff292c3
+The mask-loading process and final image-stitching algorithms are original.
 """
 
 
@@ -68,16 +72,6 @@ def loadData():
         
         window_center_width = random.randint(window_size,width - window_size - 1)
         window_center_height = random.randint(window_size,height - window_size - 1)
-        
-        """
-        #Ensure the selected center of window is within the fragment
-        while(center_val != 1):
-            window_center_width = random.randint(window_size,width - window_size - 1)
-            window_center_height = random.randint(window_size,height - window_size - 1)
-            for val in big_mask.sample([(window_center_width, window_center_height)]): 
-                center_val = val[0]
-       """     
-                
                 
         big_mask.close()
         #Set the window bounds
@@ -162,11 +156,9 @@ optimizer = torch.optim.AdamW(params=model.parameters(), lr=lr)
 def score(true_mask, predicted):
     
     TP = np.sum(np.logical_and(predicted == 1, true_mask == 1))
-    TN = np.sum(np.logical_and(predicted == 0, true_mask == 0))
     FP = np.sum(np.logical_and(predicted == 1, true_mask == 0))
     FN = np.sum(np.logical_and(predicted == 0, true_mask == 1))
     
-    print('TP: %i, FP: %i, TN: %i, FN: %i' % (TP,FP,TN,FN))
     
     p = TP/(TP+FP)
     r = TP/(TP+FN)

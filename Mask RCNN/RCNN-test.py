@@ -14,14 +14,17 @@ import math
 
 """
 MASK RCNN
+reassmbles a test fragment using a completed model by predicting the output 
+on windows across the fragment and piecing them together
 
-Advising from https://towardsdatascience.com/train-mask-rcnn-net-for-object-detection-in-60-lines-of-code-9b6bbff292c3
+The data loading process and training loop are adapted from Sagi Eppel:
+    https://towardsdatascience.com/train-mask-rcnn-net-for-object-detection-in-60-lines-of-code-9b6bbff292c3
+The mask-loading process and final image-stitching algorithms are original.
 """
 
 
 #Define the batch size and the size every sample from the fragment will be converted to
 batch_size=1
- #The maximum window size will be max_image_size x max_image_size
 
 #Set training and mask directory
 test_dir = "../vesuvius-challenge-ink-detection/test"
@@ -43,13 +46,6 @@ model.roi_heads.box_predictor=FastRCNNPredictor(in_features,num_classes=2)
 model.load_state_dict(torch.load("../checkpoints/9_400.torch", map_location=torch.device(device)))
 model.to(device)# move model to the right devic
 model.eval()
-
-
-img_collections=[]
-for pth in os.listdir(test_dir):
-    img_collections.append(test_dir+ '/' + pth + '/')
-    
-#img_collections=[img_collections[0]]
 
 img_collections = ['../vesuvius-challenge-ink-detection/train/1/']
     
@@ -133,11 +129,9 @@ for i in range(len(img_collections)):
     def score(true_mask, predicted):
         
         TP = np.sum(np.logical_and(predicted == 1, true_mask == 1))
-        TN = np.sum(np.logical_and(predicted == 0, true_mask == 0))
         FP = np.sum(np.logical_and(predicted == 1, true_mask == 0))
         FN = np.sum(np.logical_and(predicted == 0, true_mask == 1))
         
-        print('TP: %i, FP: %i, TN: %i, FN: %i' % (TP,FP,TN,FN))
         
         p = TP/(TP+FP)
         r = TP/(TP+FN)
