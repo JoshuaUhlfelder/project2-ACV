@@ -16,24 +16,22 @@ In this repo, there are five folders. The first four contain models used to solv
 
 Each of the model folders has a training and test file or a combination, along with other variations described below. 
 
-# Model 1
-1. model1.py - trains a ResNet50 pretrained from ImageNet to classify skin lesions
-2. model2.py - trains a ViT pretrained from ImageNet to classify skin lesions
-3. model3.py - trains a BERT with a pretrained ResNet50 image encoder and a custom information encoder with demographic data about the skin lesion
-4. model4.py - trains a binary classification BERT with a pretrained ResNet50 image encoder and a custom information encoder
-5. model5.py - trains a BERT with a pretrained ResNet50 image encoder and a BERT text encoder with demographic data about the skin lesion
+# Model 1: Mask RCNN
+1. RCNN.py - the original Mask RCNN trainer that validates on an entire valdiation fragment to get the F0.5 score
+2. RCNN-with-val.py - trains a Mask RCNN using validation windows (not entire fragments) from a fragment
+3. RCNN-with-val-thin - trains a Mask RCNN using only 6 layers of training data (not 65)
+4. RCNN-test - reassmbles a test fragment using a completed model by predicting the output on windows across the fragment and piecing them together
 
-# Model 2
-1. model1.py - trains a ResNet50 pretrained from ImageNet to classify skin lesions
-2. model2.py - trains a ViT pretrained from ImageNet to classify skin lesions
+# Model 2: Transformer
+1. Transformer-with-val.py - trains a transformer model using validation windows from a fragment
+2. trasformer-test.py - reassmbles a test fragment using a completed model by predicting the output on windows across the fragment and piecing them together
 
-# Model 3
-1. model1.py - trains a ResNet50 pretrained from ImageNet to classify skin lesions
-2. model2.py - trains a ViT pretrained from ImageNet to classify skin lesions
+# Model 3: U-Net Variation
+1. UNET-with-val.py - trains a 65-channeled U-Net using validation windows from a fragment
+2. UNET-test.py - reassmbles a test fragment using a completed model by predicting the output on windows across the fragment and piecing them together
 
-# Model 4
-1. model1.py - trains a ResNet50 pretrained from ImageNet to classify skin lesions
-2. model2.py - trains a ViT pretrained from ImageNet to classify skin lesions
+# Model 4: Final U-Net
+1. 
 
 # Administrative
 1. Code Reviews
