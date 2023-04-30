@@ -13,9 +13,14 @@ import math
 
 
 """
-UNET test
+UNET TEST
+reassmbles a test fragment using a completed model by predicting the output 
+on windows across the fragment and piecing them together
 
-Advising from 
+The training loops, data loading process, and testing procedures are written 
+from scratch or adapted from class materials. 
+The model architecture is also original, though the ViT architecture at the 
+head of the model is from “An Image is Worth 16x16 Words”.
 """
 
 

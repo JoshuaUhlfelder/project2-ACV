@@ -1,6 +1,5 @@
 
 
-import transformers
 from transformers import (
     AutoImageProcessor,
     ViTModel,
@@ -8,14 +7,11 @@ from transformers import (
 import cv2
 import os 
 import numpy as np
-import torchvision.models.segmentation
 import torch
-from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 import torch.nn as nn
 import torch.optim as optim
 from torch.optim import lr_scheduler
 import random
-from torchvision import transforms
 
 import rasterio
 from rasterio.windows import Window
@@ -25,7 +21,15 @@ import copy
 from tqdm import tqdm
 
 
+"""
+TRANSFORMER
+trains a transformer model using validation windows from a fragment
 
+The training loops, data loading process, and testing procedures are written 
+from scratch or adapted from class materials. 
+The model architecture is also original, though the ViT architecture at the 
+head of the model is from “An Image is Worth 16x16 Words”.
+"""
 
 
 #Define the batch size and the size every sample from the fragment will be converted to

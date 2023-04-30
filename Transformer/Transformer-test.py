@@ -2,16 +2,12 @@
 import cv2
 import os 
 import numpy as np
-import torchvision.models.segmentation
 import torch
-from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 import torch.nn as nn
-import random
 
 import rasterio
 from rasterio.windows import Window
 import math
-import transformers
 from transformers import (
     AutoImageProcessor,
     ViTModel,
@@ -19,25 +15,25 @@ from transformers import (
 
 
 """
-MASK RCNN
+TRANSFORMER TEST
+reassmbles a test fragment using a completed model by predicting the output 
+on windows across the fragment and piecing them together
 
-Advising from 
+The training loops, data loading process, and testing procedures are written 
+from scratch or adapted from class materials. 
+The model architecture is also original, though the ViT architecture at the 
+head of the model is from “An Image is Worth 16x16 Words”.
 """
 
 
 #Define the batch size and the size every sample from the fragment will be converted to
 batch_size=1
- #The maximum window size will be max_image_size x max_image_size
 
 #Set training and mask directory
 test_dir = "../vesuvius-challenge-ink-detection/test"
 #A new 'masks' folder will be created in this directory
 
-# Set device
-device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-
 #Load in model and make the same changes as before.
-
 model = ViTModel.from_pretrained(
     "google/vit-base-patch16-224",
     ignore_mismatched_sizes=True,
@@ -172,7 +168,6 @@ for i in range(len(img_collections)):
         #Calculate the F0.5 score
         scr5 = ((1+math.pow(B, 2))*p*r)/(math.pow(B, 2) * p + r)
         return scr5
-    
     
     
     f_5_score = score(true_mask, final)

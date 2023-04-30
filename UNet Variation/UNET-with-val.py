@@ -19,11 +19,15 @@ from tqdm import tqdm
 
 
 
-
 """
-U-NET
+UNET
+trains a 65-channeled U-Net using validation windows from a fragment
 
-Model from https://pytorch.org/hub/mateuszbuda_brain-segmentation-pytorch_unet/
+The training loops, data loading process, and testing procedures are written 
+from scratch or adapted from class materials. 
+The model architecture itself is derived from PyTorch’s U-Net for Brain MRI,
+https://pytorch.org/hub/mateuszbuda_brain-segmentation-pytorch_unet/ ,
+though this architecture has been modified slightly to incorporate our 65-channel data. 
 """
 
 
