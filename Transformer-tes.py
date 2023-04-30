@@ -1,3 +1,4 @@
+
 import cv2
 import os 
 import numpy as np
@@ -10,12 +11,17 @@ import random
 import rasterio
 from rasterio.windows import Window
 import math
+import transformers
+from transformers import (
+    AutoImageProcessor,
+    ViTModel,
+    )
 
 
 """
 MASK RCNN
 
-Advising from https://towardsdatascience.com/train-mask-rcnn-net-for-object-detection-in-60-lines-of-code-9b6bbff292c3
+Advising from 
 """
 
 
@@ -31,16 +37,41 @@ test_dir = "../vesuvius-challenge-ink-detection/test"
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
 #Load in model and make the same changes as before.
-model=torchvision.models.detection.maskrcnn_resnet50_fpn(pretrained=True, 
-                                                         image_mean = torch.tensor(np.full(6,0.5)),
-                                                         image_std = torch.tensor(np.full(6,0.25)))
-model.backbone.body.conv1 = nn.Conv2d(6, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
-in_features = model.roi_heads.box_predictor.cls_score.in_features 
-#Set it to only two classes - ink, no ink
-model.roi_heads.box_predictor=FastRCNNPredictor(in_features,num_classes=2)
+
+model = ViTModel.from_pretrained(
+    "google/vit-base-patch16-224",
+    ignore_mismatched_sizes=True,
+)
+model.embeddings.patch_embeddings.projection = nn.Conv2d(65, 768, kernel_size=(16, 16), stride=(16, 16))
+
+#Custom layer to convert 1d input to 2d
+class MultiDimLinear(torch.nn.Linear):
+    def __init__(self, in_features, out_shape, **kwargs):
+        self.out_shape = out_shape
+        out_features = np.prod(out_shape)
+        super().__init__(in_features, out_features, **kwargs)
+
+    def forward(self, x):
+        out = super().forward(x)
+        return out.reshape((1, 32, 32))
+
+
+
+model.pooler.dense = nn.Sequential(
+    nn.Linear(in_features=768, out_features=1024, bias=True),
+    MultiDimLinear(1024,(32,32)),
+    nn.ConvTranspose2d(1,1,2,stride=2),
+    nn.ConvTranspose2d(1,1,2,stride=2),
+    nn.ConvTranspose2d(1,1,2,stride=2),
+    nn.Conv2d(1, 1, kernel_size=(18, 18),padding=0),
+    nn.Conv2d(1, 1, kernel_size=(16, 16),padding=0),
+)
+#Load the model to the device
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+print(device)
 
 #Load states
-model.load_state_dict(torch.load("../checkpoints/9_400.torch", map_location=torch.device(device)))
+model.load_state_dict(torch.load('../model3_final', map_location=torch.device(device)))
 model.to(device)# move model to the right devic
 model.eval()
 
@@ -63,12 +94,13 @@ for i in range(len(img_collections)):
     window = Window(0,0,width,height)
     true_mask = big_mask.read(1, window=window)
     true_mask = (true_mask > 0).astype(np.uint8)
+    #true_mask = cv2.resize(true_mask, [224,224], cv2.INTER_NEAREST)
     #Ensure the selected center of window is within the fragment
     big_mask.close()
     
     combined = np.zeros((height, width))
     
-    for l in [600,510,430,380]:
+    for l in [640]:
         max_image_size= l
         
         #Get the number of full blocks in the x and y directions
@@ -77,7 +109,7 @@ for i in range(len(img_collections)):
         y_range = math.ceil(height/max_image_size)
         
         #create an empty matrix for our mask we'll make
-        result = np.zeros((height, width, 3))
+        result = np.zeros((height, width))
         
         #Divide the image into chunks
         for x in range(x_range):
@@ -88,46 +120,40 @@ for i in range(len(img_collections)):
                     coords[0] = height-max_image_size
                 if coords[1] + max_image_size >= width:
                     coords[1] = width-max_image_size
-                    
                 #for each chunk, make a window and load in the image
                 window = Window(coords[1], coords[0], max_image_size, max_image_size)
                 print(window)
-                images = np.zeros((max_image_size,max_image_size,6))
+                images = np.zeros((224,224,65))
                 layer_names = os.listdir(img_collections[i] + 'surface_volume')
                 layer_names.sort()
                 #Add each layer of the fragment to the stack of images
-                for j in range(6):
-                    with rasterio.open(img_collections[i] + 'surface_volume/' + layer_names[j+28]) as img:
+                for j in range(65):
+                    with rasterio.open(img_collections[i] + 'surface_volume/' + layer_names[j]) as img:
                         chunk = img.read(1, window=window)
-                        chunk = cv2.resize(chunk, [max_image_size,max_image_size], cv2.INTER_LINEAR)
+                        chunk = cv2.resize(chunk, [224,224], cv2.INTER_LINEAR)
                         images[:,:,j] = chunk
                 #Add the chunk to the image file
                 #Track the coordinates of the image so we can reassemble the large picture
     
-                images = torch.as_tensor(images, dtype=torch.float32).unsqueeze(0)
-                images=images.swapaxes(1, 3).swapaxes(2, 3)
-                images = list(image.to(device) for image in images)
+                inputs = torch.as_tensor(images, dtype=torch.float32).unsqueeze(0)
+                inputs=inputs.swapaxes(1, 3).swapaxes(2, 3)
+                inputs = inputs.to(device)
         
                 with torch.no_grad():
-                    pred = model(images)
-                
-                im = np.zeros((max_image_size,max_image_size,3))
-                for k in range(len(pred[0]['masks'])):
-                    msk=pred[0]['masks'][k,0].detach().cpu().numpy()
-                    scr=pred[0]['scores'][k].detach().cpu().numpy()
-                    if scr>0.6 :
-                        im[:,:,0][msk>0.5] = 1
-                        im[:, :, 1][msk > 0.5] = 1
-                        im[:, :, 2][msk > 0.5] = 1
+                    outputs = model(inputs.float())
+                    preds = outputs.pooler_output[0,:,:].detach().cpu().numpy()
+                    preds = cv2.resize(preds, [max_image_size,max_image_size], cv2.INTER_LINEAR)
+                    
+                    preds = np.where(preds>0.5, 1, 0)
+                    #print(preds.max())
+                    
                 result[coords[0]:(coords[0]+max_image_size), 
-                       coords[1]:(coords[1]+max_image_size), :] = im
+                       coords[1]:(coords[1]+max_image_size)] = preds
                 
-                
-        result = result[:,:,0]
         combined = np.add(combined, result)
         
-    final = np.where(combined>2, 1, 0)
-    cv2.imwrite('../' + str(i) + '5.png', final*255)
+    final = np.where(combined>0, 1, 0)
+    cv2.imwrite('../' + str(i) + '4.png', final*255)
     
     #Get the f1 score
     def score(true_mask, predicted):

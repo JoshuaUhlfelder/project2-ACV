@@ -1,3 +1,10 @@
+
+
+import transformers
+from transformers import (
+    AutoImageProcessor,
+    ViTModel,
+    )
 import cv2
 import os 
 import numpy as np
@@ -20,12 +27,6 @@ from tqdm import tqdm
 
 
 
-"""
-U-NET
-
-Model from https://pytorch.org/hub/mateuszbuda_brain-segmentation-pytorch_unet/
-"""
-
 
 #Define the batch size and the size every sample from the fragment will be converted to
 batch_size=1
@@ -37,7 +38,7 @@ train_dir="../vesuvius-challenge-ink-detection/train"
 
 #Set number of training windows for each fragment
 #Each epoch will have train_cycle_count x fragment_count iterations
-train_cycle_count = 60
+train_cycle_count = 50
 val_cycle_count = 40
 
 
@@ -97,7 +98,7 @@ class MyTrainDataset(torch.utils.data.Dataset):
         
         #Get a random window size (radius) with the maximum dimensions as image_size
         #And a min size as 10% of that size
-        window_size = math.floor(random.randint(math.floor(0.1*max_image_size),max_image_size*1.2)/2)
+        window_size = math.floor(random.randint(math.floor(0.2*max_image_size),max_image_size)/2)
         
         #Get the center of the window on the image
         big_mask = rasterio.open(self.fragment_folders[idx] + 'mask.png')
@@ -121,7 +122,7 @@ class MyTrainDataset(torch.utils.data.Dataset):
             ink_labels = mk.read(1, window=window)
         ink_labels = (ink_labels > 0).astype(np.uint8)
         #Resize the image
-        ink_labels=cv2.resize(ink_labels,[max_image_size,max_image_size],cv2.INTER_NEAREST)
+        ink_labels=cv2.resize(ink_labels,[224,224],cv2.INTER_NEAREST)
         #Make the 2d ink labels 3d
         ink_labels = ink_labels[:, :, np.newaxis]
         
@@ -130,12 +131,12 @@ class MyTrainDataset(torch.utils.data.Dataset):
             return self.__getitem__(idx)
         
         #for each TIF, open the file in the window and add to the tensor
-        full_img = np.zeros((max_image_size,max_image_size,65))
+        full_img = np.zeros((224,224,65))
         layer_names.sort()
         for j in range(65):
             with rasterio.open(self.fragment_folders[idx] + 'surface_volume/' + layer_names[j]) as img:
                 chunk = img.read(1, window=window)
-                chunk = cv2.resize(chunk, [max_image_size,max_image_size], cv2.INTER_LINEAR)
+                chunk = cv2.resize(chunk, [224,224], cv2.INTER_LINEAR)
                 full_img[:,:,j] = chunk
 
 
@@ -239,7 +240,7 @@ class MyValDataset(torch.utils.data.Dataset):
                 ink_labels = mk.read(1, window=window)
             ink_labels = (ink_labels > 0).astype(np.uint8) 
             #Resize the image
-            ink_labels=cv2.resize(ink_labels,[max_image_size,max_image_size],cv2.INTER_NEAREST)
+            ink_labels=cv2.resize(ink_labels,[224,224],cv2.INTER_NEAREST)
             #Make the 2d ink labels 3d
             ink_labels = ink_labels[:, :, np.newaxis]
             
@@ -248,12 +249,12 @@ class MyValDataset(torch.utils.data.Dataset):
                 return self.__getitem__(idx)
             
             #for each TIF, open the file in the window and add to the tensor
-            full_img = np.zeros((max_image_size,max_image_size,65))
+            full_img = np.zeros((224,224,65))
             layer_names.sort()
             for j in range(65):
                 with rasterio.open(self.fragment_folders[idx] + 'surface_volume/' + layer_names[j]) as img:
                     chunk = img.read(1, window=window)
-                    chunk = cv2.resize(chunk, [max_image_size,max_image_size], cv2.INTER_LINEAR)
+                    chunk = cv2.resize(chunk, [224,224], cv2.INTER_LINEAR)
                     full_img[:,:,j] = chunk
             
             
@@ -308,19 +309,44 @@ dataloaders['val'] = val_dataloader
 #MODEL CREATION
 
 
+#Load in model and make the same changes as before.
 
-#Load in the U-Net model
-model = torch.hub.load('mateuszbuda/brain-segmentation-pytorch', 'unet',
-    in_channels=3, out_channels=1, init_features=32, pretrained=True)
-#Change first layer to have 65 channels
-model.encoder1.enc1conv1 = nn.Conv2d(65, 32, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+model = ViTModel.from_pretrained(
+    "google/vit-base-patch16-224",
+    ignore_mismatched_sizes=True,
+)
+model.embeddings.patch_embeddings.projection = nn.Conv2d(65, 768, kernel_size=(16, 16), stride=(16, 16))
+
+#Custom layer to convert 1d input to 2d
+class MultiDimLinear(torch.nn.Linear):
+    def __init__(self, in_features, out_shape, **kwargs):
+        self.out_shape = out_shape
+        out_features = np.prod(out_shape)
+        super().__init__(in_features, out_features, **kwargs)
+
+    def forward(self, x):
+        out = super().forward(x)
+        return out.reshape((1, 32, 32))
+
+
+#Decoder at end 
+model.pooler.dense = nn.Sequential(
+    nn.Linear(in_features=768, out_features=1024, bias=True),
+    MultiDimLinear(1024,(32,32)),
+    nn.ConvTranspose2d(1,1,2,stride=2),
+    nn.ConvTranspose2d(1,1,2,stride=2),
+    nn.ConvTranspose2d(1,1,2,stride=2),
+    nn.Conv2d(1, 1, kernel_size=(18, 18),padding=0),
+    nn.Conv2d(1, 1, kernel_size=(16, 16),padding=0),
+)
+
+
 
 
 #Load the model to the device
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 print(device)
 
-  
 
 #Get the true/false positive/negatives for the created mask vs. the true mask
 #Then output the F0.5 score
@@ -386,13 +412,14 @@ def train_model(model, criterion, optimizer, scheduler, num_epochs=20):
                 with torch.set_grad_enabled(phase == 'train'):
                     outputs = model(inputs.float())
                     
-                    preds = outputs[0,0,:,:].detach().cpu().numpy()
+                    preds = outputs.pooler_output[0,:,:].detach().cpu().numpy()
+                    #print(preds.max())
                     preds = np.where(preds>0.5, 1, 0)
                     
                     scr = score(labels[0,0,:,:].detach().cpu().numpy(), preds)
                     
                     
-                    loss = criterion(outputs, labels)
+                    loss = criterion(outputs.pooler_output.reshape((1, 1, 224, 224)), labels)
 
                     # backward + optimize only if in training phase
                     if phase == 'train':
@@ -461,7 +488,7 @@ optimizer_ft = optim.Adam(model.parameters(), lr=1e-3)
 
 
 # Decay LR by a factor of 0.8 after a linear warmup
-scheduler1 = lr_scheduler.LinearLR(optimizer_ft, start_factor=0.03, total_iters=3)
+scheduler1 = lr_scheduler.LinearLR(optimizer_ft, start_factor=0.05, total_iters=3)
 scheduler2 = lr_scheduler.ExponentialLR(optimizer_ft, gamma=0.7)
 scheduler = lr_scheduler.SequentialLR(optimizer_ft, 
                                       schedulers=[scheduler1, scheduler2], milestones=[3])
@@ -471,35 +498,11 @@ scheduler = lr_scheduler.SequentialLR(optimizer_ft,
 
 # Train and evaluate.  
 model = train_model(model, criterion, optimizer_ft, scheduler,
-                       num_epochs=2)
+                       num_epochs=10)
 
 
 
-torch.save(model.state_dict(), '../model2_final')
+torch.save(model.state_dict(), '../model32_final')
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-        
-        
-        
-        
-        
-        
-        
-        
-        
-
-           
 
