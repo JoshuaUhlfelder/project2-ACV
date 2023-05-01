@@ -31,7 +31,7 @@ Each of the model folders has a training and test file or a combination, along w
 
 # Model 4: Final U-Net
 1. model_4_requirements.txt - a requirements file to run our final and best model: the U-Net
-2. model_4_unet_train-review.ipynb - the training and validation file for the model
+2. model_4_unet_train.ipynb - the training and validation file for the model
 
 # Code Reviews and Team Responsibilities
 1. Code Reviews - a folder containing old project files with the other team member's comments
