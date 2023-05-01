@@ -1,5 +1,4 @@
-# Using Pre-Trained Deep Learning Models to Identify Underlying Diseases from Skin Lesion Image Data
-ACV-project2
+# Detecting Ink from Ancient Roman Scrolls by Training Deep Learning Models
 Joshua Uhlfelder, Joe Pehlke
 # 
 
